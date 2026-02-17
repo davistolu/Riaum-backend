@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { moderateContent } from '../utils/profanityFilter';
+import { AuthenticatedRequest } from './auth';
 
 /**
  * Middleware to automatically filter profanity in incoming messages
@@ -98,7 +99,7 @@ export const detectInappropriateContent = (req: Request, res: Response, next: Ne
       
       console.log('Content flagged for review:', {
         fields: flaggedFields,
-        userId: req.user?.userId,
+        userId: (req as AuthenticatedRequest).user?.userId,
         timestamp: new Date()
       });
     }
