@@ -2,6 +2,15 @@ import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
 import User, { IUser } from '../models/User';
 
+// Define Google profile interface
+interface GoogleProfile {
+  email: string;
+  name?: string;
+  picture?: string;
+  id?: string;
+  verified_email?: boolean;
+}
+
 // Import URLSearchParams for token exchange
 const { URLSearchParams } = require('url');
 
@@ -194,7 +203,7 @@ export const oauthLogin = async (req: Request, res: Response) => {
           }
         });
 
-        const profile = await profileResponse.json();
+        const profile = await profileResponse.json() as GoogleProfile;
         
         if (!profile.email) {
           return res.status(400).json({
@@ -228,20 +237,21 @@ export const oauthLogin = async (req: Request, res: Response) => {
       }
     } else if (profile) {
       // Direct profile flow (fallback for other providers)
-      user = await User.findOne({ email: profile.email });
+      const typedProfile = profile as GoogleProfile;
+      user = await User.findOne({ email: typedProfile.email });
       
       if (!user) {
         user = new User({
-          name: profile.name,
-          email: profile.email,
+          name: typedProfile.name,
+          email: typedProfile.email,
           accountType: 'registered',
           isAnonymous: false,
-          profilePicture: profile.picture
+          profilePicture: typedProfile.picture
         });
       } else {
         // Update user info if needed
-        if (profile.name) user.name = profile.name;
-        if (profile.picture) user.profilePicture = profile.picture;
+        if (typedProfile.name) user.name = typedProfile.name;
+        if (typedProfile.picture) user.profilePicture = typedProfile.picture;
       }
     }
 
