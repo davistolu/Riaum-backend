@@ -44,7 +44,10 @@ const io = new Server(server, {
 app.set('io', io);
 
 // Connect to database
-connectDB();
+connectDB().catch(err => {
+  console.error('Failed to connect to database:', err);
+  process.exit(1);
+});
 
 // Rate limiting - more lenient for development
 const limiter = rateLimit({
@@ -276,10 +279,25 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // Start server
 const PORT = process.env.PORT || 5000;
+
+console.log('Starting server...');
+console.log('Environment variables loaded:');
+console.log('- NODE_ENV:', process.env.NODE_ENV);
+console.log('- PORT:', PORT);
+console.log('- MONGODB_URI:', process.env.MONGODB_URI ? 'Set' : 'Not set');
+console.log('- FRONTEND_URL:', process.env.FRONTEND_URL);
+
 server.listen(PORT, () => {
   console.log(`🚀 Serene Space API running on port ${PORT}`);
   console.log(`📱 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🌐 Frontend URL: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
+  console.log(`🔗 Server URL: http://0.0.0.0:${PORT}`);
+}).on('error', (err: any) => {
+  console.error('Server startup error:', err);
+  if (err.code === 'EADDRINUSE') {
+    console.error(`Port ${PORT} is already in use`);
+  }
+  process.exit(1);
 });
 
 // Graceful shutdown
