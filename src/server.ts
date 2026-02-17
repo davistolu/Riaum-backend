@@ -117,6 +117,27 @@ app.use('/api/', limiter);
 // Apply page view tracking to authenticated routes
 app.use('/api/', trackPageView);
 
+// Root route
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'Serene Space API',
+    version: '1.0.0',
+    endpoints: {
+      health: '/health',
+      auth: '/api/auth',
+      chat: '/api/chat',
+      peerRooms: '/api/peer-rooms',
+      admin: '/api/admin',
+      mood: '/api/mood',
+      journal: '/api/journal',
+      resources: '/api/resources',
+      notifications: '/api/notifications'
+    },
+    documentation: 'https://github.com/davistolu/Riaum-backend'
+  });
+});
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({
