@@ -5,7 +5,6 @@ import User from '../models/User';
 import PeerRoom from '../models/PeerRoom';
 import getGeminiService from '../services/gemini';
 import { AuthenticatedRequest } from '../middleware/auth';
-import { VisitorRequest as IVisitorRequest } from '../middleware/visitorAuth';
 
 // Type assertion function to safely cast Request to AuthenticatedRequest
 function asAuthenticatedRequest(req: Request): AuthenticatedRequest {
@@ -44,10 +43,11 @@ export const createChat = async (req: Request, res: Response) => {
 };
 
 // Send message to AI chat
+// Line 38
 export const sendAIMessage = async (req: Request, res: Response) => {
-  const visitorReq = req as IVisitorRequest;
+  const authReq = asAuthenticatedRequest(req);
   try {
-    const userId = visitorReq.user!.userId;
+    const userId = authReq.user!.userId;
     const { chatId, message, userMood } = req.body;
 
     // Find chat
@@ -122,30 +122,16 @@ export const sendAIMessage = async (req: Request, res: Response) => {
       console.warn(`Sensitive content detected in chat ${chatId} by user ${userId}`);
     }
 
-    // Prepare response data
-    const responseData: any = {
-      userMessage,
-      aiMessage,
-      sentiment: aiResponse.sentiment,
-      isSensitive: aiResponse.isSensitive,
-      suggestedMood: aiResponse.suggestedMood
-    };
-
-    // Add visitor information if applicable
-    if (visitorReq.visitor?.isVisitor) {
-      responseData.visitor = {
-        isVisitor: true,
-        messageCount: visitorReq.visitor.messageCount,
-        remainingMessages: visitorReq.visitor.remainingMessages,
-        requiresAuth: visitorReq.visitor.requiresAuth,
-        limitReached: visitorReq.visitor.requiresAuth
-      };
-    }
-
     return res.status(200).json({
       success: true,
       message: 'Message sent successfully',
-      data: responseData
+      data: {
+        userMessage,
+        aiMessage,
+        sentiment: aiResponse.sentiment,
+        isSensitive: aiResponse.isSensitive,
+        suggestedMood: aiResponse.suggestedMood
+      }
     });
   } catch (error: any) {
     console.error('Send AI message error:', error);
