@@ -29,6 +29,10 @@ import connectDB from './config/database';
 
 // Initialize Express app
 const app: Express = express();
+
+// Trust proxy for Render deployment
+app.set('trust proxy', true);
+
 const server = createServer(app);
 
 // Initialize Socket.IO
