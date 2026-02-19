@@ -150,16 +150,22 @@ export const login = async (req: Request, res: Response) => {
 // Anonymous login
 export const anonymousLogin = async (req: Request, res: Response) => {
   try {
+    console.log('Starting anonymous login process...');
+    
     // Create anonymous user
     const user = new User({
       accountType: 'anonymous',
       isAnonymous: true
     });
 
+    console.log('Created user object:', JSON.stringify(user, null, 2));
+
     await user.save();
+    console.log('User saved successfully with ID:', user._id);
 
     // Generate token
     const token = generateToken(user._id.toString());
+    console.log('Token generated successfully');
 
     return res.status(201).json({
       success: true,
@@ -176,7 +182,11 @@ export const anonymousLogin = async (req: Request, res: Response) => {
       }
     });
   } catch (error: any) {
-    console.error('Anonymous login error:', error);
+    console.error('Anonymous login error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
     return res.status(500).json({
       success: false,
       message: 'Failed to create anonymous session',
