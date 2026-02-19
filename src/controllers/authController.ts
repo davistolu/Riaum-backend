@@ -153,12 +153,10 @@ export const anonymousLogin = async (req: Request, res: Response) => {
   try {
     console.log('Anonymous login attempt...');
     
-    // Try OAuth-style user creation first
+    // Create anonymous user
     const user = new User({
-      accountType: 'registered', // Try registered first
-      isAnonymous: false,
-      name: 'Anonymous User',
-      email: `anon_${Date.now()}@anonymous.local` // Generate fake email
+      accountType: 'anonymous',
+      isAnonymous: true
     });
 
     console.log('User created, saving...');
