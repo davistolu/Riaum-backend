@@ -730,26 +730,35 @@ export const deleteUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Soft delete by deactivating
-    user.isActive = false;
-    await user.save();
+    // Hard delete - completely remove user and all associated data
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Mark all user's chats as deleted
-    await Chat.updateMany(
-      { userId },
-      { isDeleted: true }
-    );
+    try {
+      // Delete all user's chats
+      await Chat.deleteMany({ userId });
 
-    // Remove user from all peer rooms
-    await PeerRoom.updateMany(
-      { 'participants.userId': userId },
-      { $pull: { participants: { userId } } }
-    );
+      // Remove user from all peer rooms
+      await PeerRoom.updateMany(
+        { 'participants.userId': userId },
+        { $pull: { participants: { userId } } }
+      );
 
-    return res.status(200).json({
-      success: true,
-      message: 'User deleted successfully'
-    });
+      // Delete the user completely
+      await User.findByIdAndDelete(userId);
+
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.status(200).json({
+        success: true,
+        message: 'User deleted permanently'
+      });
+    } catch (transactionError) {
+      await session.abortTransaction();
+      session.endSession();
+      throw transactionError;
+    }
   } catch (error: any) {
     console.error('Delete user error:', error);
     return res.status(500).json({
