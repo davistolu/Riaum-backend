@@ -40,14 +40,76 @@ export const getDeviceInfo = (userAgent: string) => {
   };
 };
 
+// Check if an IP is private/local
+const isPrivateIP = (ip: string): boolean => {
+  if (!ip) return true;
+  // Normalize IPv6 loopback and IPv4-mapped IPv6
+  const normalized = ip === '::1' ? '127.0.0.1' : ip.replace(/^::ffff:/, '');
+  if (normalized === '127.0.0.1') return true;
+  if (normalized.startsWith('10.')) return true;
+  if (normalized.startsWith('192.168.')) return true;
+  // 172.16.0.0 – 172.31.255.255 only (not all of 172.x.x.x)
+  const parts = normalized.split('.');
+  if (parts[0] === '172') {
+    const second = parseInt(parts[1], 10);
+    if (second >= 16 && second <= 31) return true;
+  }
+  return false;
+};
+
+// Extract the first public IP from an x-forwarded-for chain or a single IP.
+// x-forwarded-for can look like: "clientIP, proxy1, proxy2" — the leftmost
+// non-private entry is the real user IP.
+export const extractPublicIP = (raw: string): string | null => {
+  const candidates = raw.split(',').map(s => s.trim());
+  for (const candidate of candidates) {
+    if (candidate && !isPrivateIP(candidate)) return candidate;
+  }
+  return null;
+};
+
+// Resolve the best available client IP from a request
+export const getClientIP = (req: Request): string => {
+  // x-forwarded-for is the standard header set by proxies/load balancers
+  const forwarded = req.headers['x-forwarded-for'] as string | undefined;
+  if (forwarded) {
+    const publicIP = extractPublicIP(forwarded);
+    if (publicIP) return publicIP;
+  }
+
+  // x-real-ip is set by nginx and similar
+  const realIP = req.headers['x-real-ip'] as string | undefined;
+  if (realIP && !isPrivateIP(realIP)) return realIP;
+
+  // cf-connecting-ip is set by Cloudflare
+  const cfIP = req.headers['cf-connecting-ip'] as string | undefined;
+  if (cfIP && !isPrivateIP(cfIP)) return cfIP;
+
+  // Fall back to the socket address (req.socket preferred over deprecated req.connection)
+  const socketIP = req.socket?.remoteAddress || req.ip || '127.0.0.1';
+  // Strip IPv6 prefix if present
+  const normalized = socketIP.replace(/^::ffff:/, '');
+  return normalized;
+};
+
 // Location detection utility
 export const getLocationInfo = (ip: string) => {
+  if (isPrivateIP(ip)) {
+    return {
+      country: 'Local Development',
+      city: 'Development',
+      region: 'Local',
+      coordinates: { lat: 37.7749, lng: -122.4194 } // San Francisco as fallback
+    };
+  }
+
   const geo = geoip.lookup(ip) as GeoIP;
   if (!geo) {
     return {
       country: 'Unknown',
       city: 'Unknown',
-      region: 'Unknown'
+      region: 'Unknown',
+      coordinates: { lat: 0, lng: 0 }
     };
   }
   
@@ -55,7 +117,7 @@ export const getLocationInfo = (ip: string) => {
     country: geo.country || 'Unknown',
     city: geo.city || 'Unknown',
     region: geo.region || 'Unknown',
-    coordinates: geo.ll ? { lat: geo.ll[0], lng: geo.ll[1] } : undefined
+    coordinates: geo.ll ? { lat: geo.ll[0], lng: geo.ll[1] } : { lat: 0, lng: 0 }
   };
 };
 
@@ -86,12 +148,20 @@ export const trackAnalytics = (action: 'login' | 'logout' | 'chat_start' | 'chat
       const userAgent = req.headers['user-agent'] || '';
       const deviceInfo = getDeviceInfo(userAgent);
 
-      // Get location info
-      const clientIP = req.headers['x-forwarded-for'] as string || 
-                      req.headers['x-real-ip'] as string || 
-                      req.connection.remoteAddress || 
-                      req.socket.remoteAddress || 
-                      '127.0.0.1';
+      // Get the real client IP
+      const clientIP = getClientIP(req);
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('Analytics IP Detection:', {
+          'x-forwarded-for': req.headers['x-forwarded-for'],
+          'x-real-ip': req.headers['x-real-ip'],
+          'cf-connecting-ip': req.headers['cf-connecting-ip'],
+          'socket.remoteAddress': req.socket?.remoteAddress,
+          'req.ip': req.ip,
+          'resolvedIP': clientIP
+        });
+      }
+      
       const locationInfo = getLocationInfo(clientIP);
 
       // Create analytics entry
@@ -146,12 +216,19 @@ export const trackPageView = async (req: Request, userId?: string, sessionId?: s
 
     const userAgent = req.headers['user-agent'] || '';
     const deviceInfo = getDeviceInfo(userAgent);
+    const clientIP = getClientIP(req);
 
-    const clientIP = req.headers['x-forwarded-for'] as string || 
-                    req.headers['x-real-ip'] as string || 
-                    req.connection.remoteAddress || 
-                    req.socket.remoteAddress || 
-                    '127.0.0.1';
+    if (process.env.NODE_ENV === 'development') {
+      console.log('PageView IP Detection:', {
+        'x-forwarded-for': req.headers['x-forwarded-for'],
+        'x-real-ip': req.headers['x-real-ip'],
+        'cf-connecting-ip': req.headers['cf-connecting-ip'],
+        'socket.remoteAddress': req.socket?.remoteAddress,
+        'req.ip': req.ip,
+        'resolvedIP': clientIP
+      });
+    }
+
     const locationInfo = getLocationInfo(clientIP);
 
     const analyticsData = new Analytics({
@@ -169,7 +246,6 @@ export const trackPageView = async (req: Request, userId?: string, sessionId?: s
       }
     });
 
-    // Store asynchronously
     setImmediate(async () => {
       try {
         await analyticsData.save();
