@@ -23,6 +23,7 @@ import journalRoutes from './routes/journal';
 import resourceRoutes from './routes/resources';
 import notificationRoutes from './routes/notifications';
 import { trackPageView } from './middleware/pageViewTracking';
+import { trackAnalytics } from './middleware/analytics';
 
 // Import config
 import connectDB from './config/database';
@@ -154,8 +155,8 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/auth', authRoutes);
-app.use('/api/chat', chatRoutes);
-app.use('/api/peer-rooms', peerRoomRoutes);
+app.use('/api/chat', trackAnalytics('chat_message'), chatRoutes);
+app.use('/api/peer-rooms', trackAnalytics('room_join'), peerRoomRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/mood', moodRoutes);
 app.use('/api/journal', journalRoutes);
