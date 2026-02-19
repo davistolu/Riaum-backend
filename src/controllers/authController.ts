@@ -159,11 +159,14 @@ export const anonymousLogin = async (req: Request, res: Response) => {
       throw new Error('MongoDB not connected');
     }
     
-    // Create minimal anonymous user
+    // Create anonymous user with explicit undefined values for unique fields
     const userData = {
       accountType: 'anonymous',
       isAnonymous: true,
-      isActive: true
+      isActive: true,
+      username: undefined, // Explicitly undefined to avoid unique constraint issues
+      email: undefined,   // Explicitly undefined to avoid unique constraint issues
+      name: undefined     // Explicitly undefined to avoid unique constraint issues
     };
     
     console.log('Creating user with data:', userData);
