@@ -143,6 +143,14 @@ userSchema.virtual('formattedMemberSince').get(function() {
 
 // Pre-save middleware for password hashing
 userSchema.pre('save', async function(next) {
+  console.log('User pre-save middleware triggered for:', this._id || 'new user');
+  console.log('User data:', JSON.stringify({
+    accountType: this.accountType,
+    isAnonymous: this.isAnonymous,
+    username: this.username,
+    email: this.email
+  }, null, 2));
+  
   if (!this.isModified('password') || !this.password) return next();
   
   try {
@@ -150,6 +158,7 @@ userSchema.pre('save', async function(next) {
     this.password = await bcrypt.hash(this.password, salt);
     next();
   } catch (error) {
+    console.error('Password hashing error:', error);
     next(error as Error);
   }
 });
