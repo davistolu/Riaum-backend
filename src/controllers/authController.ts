@@ -424,57 +424,6 @@ export const updateProfile = async (req: Request, res: Response) => {
   }
 };
 
-// Visitor session creation
-export const createVisitorSession = async (req: Request, res: Response) => {
-  try {
-    console.log('Creating visitor session...');
-    
-    // Create anonymous visitor user
-    const user = new User({
-      accountType: 'anonymous',
-      isAnonymous: true,
-      username: `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      email: `visitor_${Date.now()}_${Math.random().toString(36).substr(2, 9)}@temp.local`,
-      visitorMessageCount: 0
-    });
-
-    console.log('Visitor user created, saving...');
-    await user.save();
-    console.log('Visitor user saved with ID:', user._id);
-
-    // Generate token for visitor session
-    const token = generateToken(user._id.toString());
-
-    return res.status(201).json({
-      success: true,
-      message: 'Visitor session created',
-      data: {
-        user: {
-          id: user._id,
-          accountType: user.accountType,
-          memberSince: user.memberSince,
-          visitorMessageCount: user.visitorMessageCount || 0,
-          isVisitor: true
-        },
-        token,
-        visitor: {
-          messageLimit: 2,
-          remainingMessages: 2,
-          isVisitor: true
-        }
-      }
-    });
-  } catch (error: any) {
-    console.error('Visitor session creation failed:', error.message);
-    console.error('Full error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to create visitor session',
-      error: error.message
-    });
-  }
-};
-
 // Logout user
 export const logout = async (req: Request, res: Response) => {
   try {
