@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User, { IUser } from '../models/User';
 
 // Define Google profile interface
@@ -151,14 +152,24 @@ export const login = async (req: Request, res: Response) => {
 export const anonymousLogin = async (req: Request, res: Response) => {
   try {
     console.log('Starting anonymous login process...');
+    console.log('MongoDB connection state:', mongoose.connection.readyState);
     
-    // Create anonymous user
-    const user = new User({
+    // Test basic MongoDB connection
+    if (mongoose.connection.readyState !== 1) {
+      throw new Error('MongoDB not connected');
+    }
+    
+    // Create minimal anonymous user
+    const userData = {
       accountType: 'anonymous',
-      isAnonymous: true
-    });
-
-    console.log('Created user object:', JSON.stringify(user, null, 2));
+      isAnonymous: true,
+      isActive: true
+    };
+    
+    console.log('Creating user with data:', userData);
+    
+    const user = new User(userData);
+    console.log('User object created successfully');
 
     await user.save();
     console.log('User saved successfully with ID:', user._id);
@@ -173,7 +184,6 @@ export const anonymousLogin = async (req: Request, res: Response) => {
       data: {
         user: {
           id: user._id,
-          username: user.username,
           accountType: user.accountType,
           memberSince: user.memberSince,
           preferences: user.preferences
@@ -185,7 +195,8 @@ export const anonymousLogin = async (req: Request, res: Response) => {
     console.error('Anonymous login error details:', {
       message: error.message,
       stack: error.stack,
-      name: error.name
+      name: error.name,
+      mongooseState: mongoose.connection.readyState
     });
     return res.status(500).json({
       success: false,
