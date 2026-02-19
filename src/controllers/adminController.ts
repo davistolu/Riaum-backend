@@ -303,6 +303,100 @@ export const updateUserStatus = async (req: Request, res: Response) => {
   }
 };
 
+// Update user (comprehensive)
+export const updateUser = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+    const { name, email, username, accountType, isActive } = req.body;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Update name
+    if (name !== undefined && user.accountType === 'registered') {
+      user.name = name;
+    }
+
+    // Update email with validation
+    if (email !== undefined && user.accountType === 'registered') {
+      // Check if email is already taken by another user
+      const existingEmailUser = await User.findOne({ 
+        email: email, 
+        _id: { $ne: userId } 
+      });
+      
+      if (existingEmailUser) {
+        return res.status(400).json({
+          success: false,
+          message: 'Email is already registered'
+        });
+      }
+      
+      user.email = email;
+    }
+
+    // Update username with validation
+    if (username !== undefined && user.accountType === 'registered') {
+      // Check if username is already taken by another user
+      const existingUsername = await User.findOne({ 
+        username: username, 
+        _id: { $ne: userId } 
+      });
+      
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username is already taken'
+        });
+      }
+      
+      user.username = username;
+    }
+
+    // Update account type
+    if (accountType !== undefined) {
+      user.accountType = accountType;
+    }
+
+    // Update active status
+    if (isActive !== undefined) {
+      user.isActive = isActive;
+    }
+
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      data: { 
+        user: {
+          id: user._id,
+          name: user.name,
+          email: user.email,
+          username: user.username,
+          accountType: user.accountType,
+          isActive: user.isActive,
+          memberSince: user.memberSince,
+          lastActive: user.lastActive,
+          isAdmin: user.isAdmin
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('Update user error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update user',
+      error: error.message
+    });
+  }
+};
+
 // Get all chats with pagination
 export const getAllChats = async (req: Request, res: Response) => {
   try {
@@ -500,7 +594,130 @@ export const updateRoomStatus = async (req: Request, res: Response) => {
   }
 };
 
-// Delete user
+// Get all admins
+export const getAllAdmins = async (req: Request, res: Response) => {
+  try {
+    const admins = await User.find({ isAdmin: true })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    return res.status(200).json({
+      success: true,
+      data: { admins }
+    });
+  } catch (error: any) {
+    console.error('Get all admins error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to get admins',
+      error: error.message
+    });
+  }
+};
+
+// Create new admin
+export const createAdmin = async (req: Request, res: Response) => {
+  try {
+    const { name, email, username, password } = req.body;
+
+    // Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({
+        success: false,
+        message: 'User with this email already exists'
+      });
+    }
+
+    // Check if username is already taken
+    if (username) {
+      const existingUsername = await User.findOne({ username });
+      if (existingUsername) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username is already taken'
+        });
+      }
+    }
+
+    // Create new admin user
+    const admin = new User({
+      name,
+      email,
+      username,
+      password,
+      accountType: 'registered',
+      isAdmin: true,
+      isActive: true
+    });
+
+    await admin.save();
+
+    return res.status(201).json({
+      success: true,
+      message: 'Admin created successfully',
+      data: {
+        admin: {
+          id: admin._id,
+          name: admin.name,
+          email: admin.email,
+          username: admin.username,
+          accountType: admin.accountType,
+          isAdmin: admin.isAdmin,
+          isActive: admin.isActive,
+          memberSince: admin.memberSince
+        }
+      }
+    });
+  } catch (error: any) {
+    console.error('Create admin error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to create admin',
+      error: error.message
+    });
+  }
+};
+
+// Remove admin privileges
+export const removeAdminPrivileges = async (req: Request, res: Response) => {
+  try {
+    const { userId } = req.params;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Prevent removing admin from the last admin
+    const adminCount = await User.countDocuments({ isAdmin: true });
+    if (adminCount <= 1) {
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot remove admin privileges from the last admin user'
+      });
+    }
+
+    user.isAdmin = false;
+    await user.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Admin privileges removed successfully',
+      data: { user }
+    });
+  } catch (error: any) {
+    console.error('Remove admin privileges error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to remove admin privileges',
+      error: error.message
+    });
+  }
+};
 export const deleteUser = async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
