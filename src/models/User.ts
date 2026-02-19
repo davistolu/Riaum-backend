@@ -23,8 +23,6 @@ export interface IUser extends Document {
     note?: string;
   }>;
   lastActive: Date;
-  visitorMessageCount?: number;
-  visitorChatId?: mongoose.Types.ObjectId;
   comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
@@ -114,15 +112,6 @@ const userSchema = new Schema<IUser>({
   lastActive: {
     type: Date,
     default: Date.now
-  },
-  visitorMessageCount: {
-    type: Number,
-    default: 0,
-    min: 0
-  },
-  visitorChatId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Chat'
   }
 }, {
   timestamps: true,
