@@ -8,7 +8,8 @@ import {
   oauthLogin,
   getCurrentUser,
   updateProfile,
-  logout
+  logout,
+  createVisitorSession
 } from '../controllers/authController';
 import { authenticate } from '../middleware/auth';
 import { trackAnalytics } from '../middleware/analytics';
@@ -98,6 +99,7 @@ const profileUpdateValidation = [
 router.post('/register', registerValidation, handleValidationErrors, trackAnalytics('login'), register);
 router.post('/login', loginValidation, handleValidationErrors, trackAnalytics('login'), login);
 router.post('/anonymous', anonymousLogin);
+router.post('/visitor', createVisitorSession);
 router.post('/oauth', oauthLogin);
 router.get('/me', authenticate, getCurrentUser);
 router.put('/profile', authenticate, profileUpdateValidation, handleValidationErrors, updateProfile);
