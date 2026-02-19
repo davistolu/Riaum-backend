@@ -1027,7 +1027,7 @@ export const getAnalytics = async (req: Request, res: Response) => {
       
       // Location statistics
       Analytics.aggregate([
-        { $match: { timestamp: { $gte: startDate }, 'metadata.location.country': { $ne: 'Unknown' } } },
+        { $match: { timestamp: { $gte: startDate }, 'metadata.location.country': { $ne: null } } },
         {
           $group: {
             _id: '$metadata.location.country',
