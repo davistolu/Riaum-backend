@@ -14,12 +14,23 @@ import {
   exportChatData
 } from '../controllers/chatController';
 import { authenticate } from '../middleware/auth';
+import { visitorAuth, incrementVisitorMessageCount, VisitorRequest } from '../middleware/visitorAuth';
 import { trackAnalytics } from '../middleware/analytics';
 import { filterProfanity, detectInappropriateContent } from '../middleware/contentFilter';
 
 // Type assertion helper for authenticated routes
 const asAuthenticatedHandler = (handler: (req: any, res: any) => Promise<any>): RequestHandler => {
   return handler as RequestHandler;
+};
+
+// Type assertion helper for visitor routes
+const asVisitorHandler = (handler: (req: any, res: any) => Promise<any>): RequestHandler => {
+  return handler as RequestHandler;
+};
+
+// Visitor chat handler wrapper
+const withVisitorTracking = (handler: (req: any, res: any) => Promise<any>): RequestHandler => {
+  return [incrementVisitorMessageCount, asVisitorHandler(handler)] as any;
 };
 
 const router: Router = express.Router();
@@ -38,8 +49,8 @@ const handleValidationErrors = (req: express.Request, res: express.Response, nex
   next();
 };
 
-// All chat routes require authentication
-router.use(authenticate);
+// All chat routes support visitor access (with limitations)
+router.use(visitorAuth);
 
 // Validation middleware
 const createChatValidation = [
@@ -102,16 +113,16 @@ const peerMessageValidation = [
   ];
 
 // Routes
-router.post('/', createChatValidation, handleValidationErrors, trackAnalytics('chat_start'), asAuthenticatedHandler(createChat));
-router.post('/ai-message', sendMessageValidation, handleValidationErrors, trackAnalytics('chat_message'), asAuthenticatedHandler(sendAIMessage));
-router.post('/peer-message', peerMessageValidation, handleValidationErrors, trackAnalytics('chat_message'), asAuthenticatedHandler(sendPeerMessage));
-router.get('/', paginationValidation, handleValidationErrors, asAuthenticatedHandler(getUserChats));
-router.get('/room/:roomId', param('roomId').isMongoId().withMessage('Room ID must be a valid MongoDB ObjectId'), handleValidationErrors, asAuthenticatedHandler(getChatByRoomId));
-router.get('/:chatId', param('chatId').isMongoId().withMessage('Chat ID must be a valid MongoDB ObjectId'), handleValidationErrors, asAuthenticatedHandler(getChatById));
-router.put('/:chatId/messages/:messageId', updateMessageValidation, handleValidationErrors, asAuthenticatedHandler(updateMessage));
-router.delete('/:chatId', param('chatId').isMongoId().withMessage('Chat ID must be a valid MongoDB ObjectId'), handleValidationErrors, asAuthenticatedHandler(deleteChat));
-router.patch('/:chatId/archive', param('chatId').isMongoId().withMessage('Chat ID must be a valid MongoDB ObjectId'), handleValidationErrors, asAuthenticatedHandler(archiveChat));
-router.post('/:chatId/summary', param('chatId').isMongoId().withMessage('Chat ID must be a valid MongoDB ObjectId'), handleValidationErrors, asAuthenticatedHandler(generateChatSummary));
-router.get('/export/data', query('format').optional().isIn(['json']).withMessage('Format must be json'), handleValidationErrors, asAuthenticatedHandler(exportChatData));
+router.post('/', createChatValidation, handleValidationErrors, trackAnalytics('chat_start'), asVisitorHandler(createChat));
+router.post('/ai-message', sendMessageValidation, handleValidationErrors, trackAnalytics('chat_message'), withVisitorTracking(sendAIMessage));
+router.post('/peer-message', peerMessageValidation, handleValidationErrors, trackAnalytics('chat_message'), asVisitorHandler(sendPeerMessage));
+router.get('/', paginationValidation, handleValidationErrors, asVisitorHandler(getUserChats));
+router.get('/room/:roomId', param('roomId').isMongoId().withMessage('Room ID must be a valid MongoDB ObjectId'), handleValidationErrors, asVisitorHandler(getChatByRoomId));
+router.get('/:chatId', param('chatId').isMongoId().withMessage('Chat ID must be a valid MongoDB ObjectId'), handleValidationErrors, asVisitorHandler(getChatById));
+router.put('/:chatId/messages/:messageId', updateMessageValidation, handleValidationErrors, asVisitorHandler(updateMessage));
+router.delete('/:chatId', param('chatId').isMongoId().withMessage('Chat ID must be a valid MongoDB ObjectId'), handleValidationErrors, asVisitorHandler(deleteChat));
+router.patch('/:chatId/archive', param('chatId').isMongoId().withMessage('Chat ID must be a valid MongoDB ObjectId'), handleValidationErrors, asVisitorHandler(archiveChat));
+router.post('/:chatId/summary', param('chatId').isMongoId().withMessage('Chat ID must be a valid MongoDB ObjectId'), handleValidationErrors, asVisitorHandler(generateChatSummary));
+router.get('/export/data', query('format').optional().isIn(['json']).withMessage('Format must be json'), handleValidationErrors, asVisitorHandler(exportChatData));
 
 export default router;
