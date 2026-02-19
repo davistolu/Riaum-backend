@@ -6,6 +6,7 @@ import {
   getAllUsers,
   getUserDetails,
   updateUserStatus,
+  updateUser,
   getAllChats,
   getChatDetails,
   getAllPeerRooms,
@@ -17,7 +18,10 @@ import {
   getAnalytics,
   exportData,
   adminCreateRoom,
-  deletePeerRoom
+  deletePeerRoom,
+  getAllAdmins,
+  createAdmin,
+  removeAdminPrivileges
 } from '../controllers/adminController';
 import { authenticate, requireAdmin } from '../middleware/auth';
 
@@ -75,6 +79,27 @@ const messageIdValidation = [
   param('messageId')
     .isMongoId()
     .withMessage('Message ID must be a valid MongoDB ObjectId')
+];
+
+const adminCreateValidation = [
+  body('name')
+    .trim()
+    .isLength({ min: 2, max: 100 })
+    .withMessage('Name must be between 2 and 100 characters'),
+  body('email')
+    .isEmail()
+    .normalizeEmail()
+    .withMessage('Please provide a valid email'),
+  body('username')
+    .optional()
+    .trim()
+    .isLength({ min: 3, max: 30 })
+    .withMessage('Username must be between 3 and 30 characters')
+    .matches(/^[a-zA-Z0-9_]+$/)
+    .withMessage('Username can only contain letters, numbers, and underscores'),
+  body('password')
+    .isLength({ min: 6 })
+    .withMessage('Password must be at least 6 characters long')
 ];
 
 // Admin room creation validation
@@ -153,7 +178,13 @@ router.get('/export', exportData);
 router.get('/users', paginationValidation, handleValidationErrors, getAllUsers);
 router.get('/users/:userId', userIdValidation, handleValidationErrors, getUserDetails);
 router.put('/users/:userId/status', userIdValidation, handleValidationErrors, updateUserStatus);
+router.put('/users/:userId', userIdValidation, handleValidationErrors, updateUser);
 router.delete('/users/:userId', userIdValidation, handleValidationErrors, deleteUser);
+
+// Admin management routes
+router.get('/admins', getAllAdmins);
+router.post('/admins', adminCreateValidation, handleValidationErrors, createAdmin);
+router.delete('/admins/:userId', userIdValidation, handleValidationErrors, removeAdminPrivileges);
 
 // Chat management routes
 router.get('/chats', paginationValidation, handleValidationErrors, getAllChats);
