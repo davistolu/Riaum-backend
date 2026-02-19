@@ -151,35 +151,22 @@ export const login = async (req: Request, res: Response) => {
 // Anonymous login
 export const anonymousLogin = async (req: Request, res: Response) => {
   try {
-    console.log('Starting anonymous login process...');
-    console.log('MongoDB connection state:', mongoose.connection.readyState);
+    console.log('Anonymous login attempt...');
     
-    // Test basic MongoDB connection
-    if (mongoose.connection.readyState !== 1) {
-      throw new Error('MongoDB not connected');
-    }
-    
-    // Create anonymous user with explicit undefined values for unique fields
-    const userData = {
-      accountType: 'anonymous',
-      isAnonymous: true,
-      isActive: true,
-      username: undefined, // Explicitly undefined to avoid unique constraint issues
-      email: undefined,   // Explicitly undefined to avoid unique constraint issues
-      name: undefined     // Explicitly undefined to avoid unique constraint issues
-    };
-    
-    console.log('Creating user with data:', userData);
-    
-    const user = new User(userData);
-    console.log('User object created successfully');
+    // Try OAuth-style user creation first
+    const user = new User({
+      accountType: 'registered', // Try registered first
+      isAnonymous: false,
+      name: 'Anonymous User',
+      email: `anon_${Date.now()}@anonymous.local` // Generate fake email
+    });
 
+    console.log('User created, saving...');
     await user.save();
-    console.log('User saved successfully with ID:', user._id);
+    console.log('User saved with ID:', user._id);
 
     // Generate token
     const token = generateToken(user._id.toString());
-    console.log('Token generated successfully');
 
     return res.status(201).json({
       success: true,
@@ -195,12 +182,8 @@ export const anonymousLogin = async (req: Request, res: Response) => {
       }
     });
   } catch (error: any) {
-    console.error('Anonymous login error details:', {
-      message: error.message,
-      stack: error.stack,
-      name: error.name,
-      mongooseState: mongoose.connection.readyState
-    });
+    console.error('Anonymous login failed:', error.message);
+    console.error('Full error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to create anonymous session',
