@@ -39,7 +39,6 @@ A comprehensive backend API for the Serene Space mental health support platform,
    ```env
    PORT=5000
    MONGODB_URI=mongodb://localhost:27017/serene-space
-   JWT_SECRET=your-super-secret-jwt-key
    GEMINI_API_KEY=your-gemini-api-key
    FRONTEND_URL=http://localhost:5173
    ```
