@@ -1,6 +1,6 @@
-# Serene Space Backend API
+# RIAUM Backend API
 
-A comprehensive backend API for the Serene Space mental health support platform, built with Express.js, TypeScript, and MongoDB.
+A comprehensive backend API for the Riaum  mental health support platform, built with Express.js, TypeScript, and MongoDB.
 
 ## Features
 
